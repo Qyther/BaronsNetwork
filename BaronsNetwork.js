@@ -90,21 +90,15 @@ class acf {
 }
 var sigmoid=new acf(x=>1/(1+Math.exp(-x)),y=>y*(1-y));
 var tanh=new acf(x=>Math.tanh(x),y=>1-(y*y));
-var isru=new acf(x=>x/Math.sqrt(1+Math.pow(x,2)),y=>Math.pow(1/Math.sqrt(1+Math.pow(y,2)),3));
-var sosi=new acf(x=>x/(1+Math.abs(x)),y=>1/Math.pow(1+Math.abs(y),2));
-var atan=new acf(x=>Math.atan(x),y=>1/(Math.pow(y,2)+1));
-var sopl=new acf(x=>Math.log(1+Math.exp(x)),y=>1/(1+Math.exp(-y)));
-var sinu=new acf(x=>Math.sin(x),y=>Math.cos(y));
-var soma=new acf(x=>2*x*sigmoid.f(1*x));
-var empty=new acf(x=>x,y=>1);
 class BaronsNetwork {
   constructor(a) {
     this.arch=a;
-    this.ra=empty;
     this.lay=[];
     for(var i=0;i<this.arch.length-1;i++) {
-      this.lay.push(new BaronsNetworkLayer(this.arch[i],this.arch[i+1]));  
+      this.lay.push(new BaronsNetworkLayer(this,this.arch[i],this.arch[i+1]));  
     }
+    this.lr=.1;
+    this.ac=sigmoid;
   }
   think(a) {
     var inp=BaronsMatrix.array(a);
@@ -112,8 +106,7 @@ class BaronsNetwork {
     for(var i=0;i<this.lay.length;i++) {
       tho=this.lay[i].think(tho); 
     }
-    
-    return tho.map(this.ra.f).array();
+    return tho.array();
   }
   train(a,b) {
     var inp=BaronsMatrix.array(a);
@@ -133,12 +126,8 @@ class BaronsNetwork {
   }
   distortValues(a,b) {
       for(var i=0;i<this.lay.length;i++) {
-          this.lay[i].distortWeights(a,b);
-      }
-  }
-  setActivation(a,b) {
-      for(var i=0;i<this.lay.length;i++) {
-          if(b===undefined||i===b) this.lay[i].setActivation(a);
+          var dis=this.lay[i];
+          dis.distortWeights(a,b);
       }
   }
   string() {
@@ -157,7 +146,7 @@ class BaronsNetwork {
     var n=new BaronsNetwork(a.arch);
     var laycac=[];
     a.lay.map(e=>{
-        var nlay=new BaronsNetworkLayer(e.w.c,e.w.r);
+        var nlay=new BaronsNetworkLayer(n,e.w.c,e.w.r);
         nlay.w=BaronsMatrix.load(JSON.parse(JSON.stringify(e.w)));
         nlay.b=BaronsMatrix.load(JSON.parse(JSON.stringify(e.b)));
         laycac.push(nlay);
@@ -167,36 +156,32 @@ class BaronsNetwork {
   }
 }
 class BaronsNetworkLayer {
-  constructor(a,b) {
-    this.ac=sigmoid;
-    this.lr=.1;
-    this.w=new BaronsMatrix(b,a);
+  constructor(a,b,c) {
+    this.p=a;
+    this.w=new BaronsMatrix(c,b);
     this.w.randomize();
-    this.b=new BaronsMatrix(b,1);
+    this.b=new BaronsMatrix(c,1);
     this.b.randomize();
   }
   think(a) {
     var tho=BaronsMatrix.mult(this.w,a);
     tho.add(this.b);
-    tho.map(this.ac.f);
+    tho.map(this.p.ac.f);
     return tho;
-  }
-  setActivation(a) {
-      this.ac=a;
   }
   distortWeights(a,b) {
       this.w.map(x=>{
-            if (Math.random()<a) {
-                var offset=(Math.random()*2-1)*b;
-                var newx=x+offset;
+            if (Math.random() < a) {
+                var offset = (Math.random()*2-1)*b;
+                var newx = x + offset;
                 return newx;
             } else return x;
       });
   }
   moldValues(a,b,c) {
-    var gra=BaronsMatrix.map(a,this.ac.d);
+    var gra=BaronsMatrix.map(a,this.p.ac.d);
     gra.mult(c);
-    gra.mult(this.lr);
+    gra.mult(this.p.lr);
     var prethot=BaronsMatrix.transpose(b);
     var weid=BaronsMatrix.mult(gra,prethot);
     this.w.add(weid);
