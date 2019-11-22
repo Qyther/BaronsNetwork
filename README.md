@@ -1,0 +1,2 @@
+# BaronsNetwork
+A simple RNN
